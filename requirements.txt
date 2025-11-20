@@ -1,5 +1,6 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
 flask
-tensorflow
+tensorflow-cpu
 torch
 diffusers
 transformers
