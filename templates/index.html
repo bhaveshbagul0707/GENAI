@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GenAI Studio - AI Model Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+
+<body>
+  <div class="bg-animation"></div>
+  <div id="toasts"></div>
+
+  <aside class="sidebar">
+    <div class="logo-container">
+      <div class="logo-icon">
+        <span>🤖</span>
+      </div>
+      <div class="logo-text">GenAI Studio</div>
+    </div>
+
+    <nav>
+      <div class="nav-section">
+        <div class="nav-label">Models</div>
+        <button class="nav-btn active" onclick="openTab('tf')">
+          <span class="nav-icon">🔮</span>
+          <span>Transformer</span>
+        </button>
+        <button class="nav-btn" onclick="openTab('ae')">
+          <span class="nav-icon">🎨</span>
+          <span>Autoencoder</span>
+        </button>
+        <button class="nav-btn" onclick="openTab('gan')">
+          <span class="nav-icon">✨</span>
+          <span>GAN</span>
+        </button>
+        <button class="nav-btn" onclick="openTab('diff')">
+          <span class="nav-icon">🌊</span>
+          <span>Diffusion</span>
+        </button>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-label">Analytics</div>
+        <button class="nav-btn" onclick="openTab('metrics')">
+          <span class="nav-icon">📊</span>
+          <span>Evaluation</span>
+        </button>
+      </div>
+    </nav>
+  </aside>
+
+  <main class="main-content">
+    <div class="topbar">
+      <div class="topbar-left">
+        <h1>AI Model Dashboard</h1>
+        <div class="topbar-subtitle">Experiment with cutting-edge generative models</div>
+      </div>
+      <div class="topbar-right">
+        <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+      </div>
+    </div>
+
+    <!-- TRANSFORMER -->
+    <section id="tf" class="tab-content active">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background: var(--gradient-1);">
+            <span><svg width="140" height="50" viewBox="0 0 140 50">
+  <rect x="5" y="5" width="50" height="40" fill="#fde047"/>
+  <rect x="85" y="5" width="50" height="40" fill="#fbbf24"/>
+  <line x1="55" y1="25" x2="85" y2="25" stroke="black" stroke-width="2"/>
+</svg>
+</span>
+          </div>
+          <div class="card-title">
+            <h2>Transformer Model</h2>
+            <div class="card-subtitle">Image classification with attention mechanisms</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Upload Image</label>
+          <div class="file-input-wrapper">
+            <input type="file" id="tf_image" class="file-input" accept="image/*">
+            <label for="tf_image" class="file-input-label">
+              <span>📁</span>
+              <span>Choose an image file</span>
+            </label>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="runTransformer()">
+          <span>▶️</span>
+          <span>Run Classification</span>
+        </button>
+
+        <div class="progress-container" id="prog-tf-container">
+          <div class="progress-bar">
+            <div class="progress-fill" id="prog-tf"></div>
+          </div>
+        </div>
+
+        <div class="skeleton" id="sk-tf"></div>
+        <pre id="tf_out" class="output-box" style="display:none;"></pre>
+      </div>
+    </section>
+
+    <!-- AUTOENCODER -->
+    <section id="ae" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background: var(--gradient-2);">
+            <span><svg width="120" height="40" viewBox="0 0 120 40">
+  <circle cx="20" cy="20" r="10" fill="#60a5fa"/>
+  <circle cx="60" cy="20" r="5" fill="#2563eb"/>
+  <circle cx="100" cy="20" r="10" fill="#60a5fa"/>
+  <line x1="30" y1="20" x2="55" y2="20" stroke="gray" stroke-width="2"/>
+  <line x1="65" y1="20" x2="90" y2="20" stroke="gray" stroke-width="2"/>
+</svg>
+</span>
+          </div>
+          <div class="card-title">
+            <h2>Autoencoder</h2>
+            <div class="card-subtitle">Image reconstruction and compression</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Upload Image</label>
+          <div class="file-input-wrapper">
+            <input type="file" id="ae_image" class="file-input" accept="image/*">
+            <label for="ae_image" class="file-input-label">
+              <span>📁</span>
+              <span>Choose an image file</span>
+            </label>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="runAutoencoder()">
+          <span>🔄</span>
+          <span>Reconstruct Image</span>
+        </button>
+
+        <div class="progress-container" id="prog-ae-container">
+          <div class="progress-bar">
+            <div class="progress-fill" id="prog-ae"></div>
+          </div>
+        </div>
+
+        <div class="skeleton" id="sk-ae"></div>
+        <pre id="ae_out" class="output-box" style="display:none;"></pre>
+        <img id="ae_img" class="generated-img" style="display:none;">
+        <button class="btn btn-secondary" onclick="downloadImg('ae_img','autoencoder_output.png')"
+          style="margin-top:16px;display:none;" id="ae_download">
+          <span>⬇️</span>
+          <span>Download Result</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- GAN -->
+    <section id="gan" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background: var(--gradient-3);">
+            <span><svg width="60" height="60" viewBox="0 0 60 60">
+  <rect x="0" y="0" width="30" height="60" fill="#4b5563"/>
+  <rect x="30" y="0" width="30" height="60" fill="#9ca3af"/>
+</svg>
+</span>
+          </div>
+          <div class="card-title">
+            <h2>GAN Generator</h2>
+            <div class="card-subtitle">Generate synthetic images from noise</div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="runGAN()">
+          <span>🎲</span>
+          <span>Generate Image</span>
+        </button>
+
+        <div class="progress-container" id="prog-gan-container">
+          <div class="progress-bar">
+            <div class="progress-fill" id="prog-gan"></div>
+          </div>
+        </div>
+
+        <div class="skeleton" id="sk-gan"></div>
+        <pre id="gan_out" class="output-box" style="display:none;"></pre>
+        <img id="gan_img" class="generated-img" style="display:none;">
+        <button class="btn btn-secondary" onclick="downloadImg('gan_img','gan_output.png')"
+          style="margin-top:16px;display:none;" id="gan_download">
+          <span>⬇️</span>
+          <span>Download Result</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- DIFFUSION -->
+    <section id="diff" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background: var(--gradient-4);">
+            <span><svg width="120" height="40" viewBox="0 0 120 40">
+  <rect x="5" y="5" width="30" height="30" fill="#d1d5db"/>
+  <circle cx="20" cy="20" r="2" fill="black"/>
+  <circle cx="15" cy="12" r="2" fill="black"/>
+  <circle cx="25" cy="28" r="2" fill="black"/>
+  <polygon points="45,20 60,15 60,25" fill="gray"/>
+  <rect x="75" y="5" width="30" height="30" fill="#34d399"/>
+</svg>
+</span>
+          </div>
+          <div class="card-title">
+            <h2>Diffusion Model</h2>
+            <div class="card-subtitle">State-of-the-art image generation</div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="runDiffusion()">
+          <span>⚡</span>
+          <span>Generate Image</span>
+        </button>
+
+        <div class="progress-container" id="prog-diff-container">
+          <div class="progress-bar">
+            <div class="progress-fill" id="prog-diff"></div>
+          </div>
+        </div>
+
+        <div class="skeleton" id="sk-diff"></div>
+        <pre id="diff_out" class="output-box" style="display:none;"></pre>
+        <img id="diff_img" class="generated-img" style="display:none;">
+        <button class="btn btn-secondary" onclick="downloadImg('diff_img','diffusion_output.png')"
+          style="margin-top:16px;display:none;" id="diff_download">
+          <span>⬇️</span>
+          <span>Download Result</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- METRICS -->
+    <section id="metrics" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background: var(--gradient-1);">
+            <span>📊</span>
+          </div>
+          <div class="card-title">
+            <h2>Model Evaluation</h2>
+            <div class="card-subtitle">Performance metrics and analysis</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <button class="btn btn-secondary" onclick="loadEval('transformer')">Transformer</button>
+          <button class="btn btn-secondary" onclick="loadEval('autoencoder')">Autoencoder</button>
+          <button class="btn btn-secondary" onclick="loadEval('gan')">GAN</button>
+          <button class="btn btn-secondary" onclick="loadEval('diffusion')">Diffusion</button>
+        </div>
+
+        <div id="eval_output" style="margin-top:30px;"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/main.js"></script>
+</body>
+
+</html>
