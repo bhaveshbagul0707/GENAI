@@ -7,6 +7,15 @@ import os
 from diffusers import UNet2DModel, DDPMScheduler, DDPMPipeline
 
 # ===================================================
+#  Global Variables for Lazy Loading
+# ===================================================
+
+transformer = None
+generator = None
+autoencoder = None
+pipe = None
+
+# ===================================================
 #  Transformer custom layers
 # ===================================================
 
@@ -62,30 +71,37 @@ custom_layers = {
 }
 
 # ===================================================
-#  Load Transformer
+#  Load Transformer (Lazy)
 # ===================================================
 
-print("Loading Transformer model...")
-transformer = tf.keras.models.load_model(
-    "models/transformer.keras",
-    custom_objects=custom_layers,
-    compile=False
-)
+def get_transformer():
+    global transformer
+    if transformer is None:
+        print("Loading Transformer model...")
+        transformer = tf.keras.models.load_model(
+            "models/transformer.keras",
+            custom_objects=custom_layers,
+            compile=False
+        )
+    return transformer
 
 # ===================================================
-#  Load GAN Generator
+#  Load GAN Generator (Lazy)
 # ===================================================
 
-print("Loading GAN Generator...")
-generator = tf.keras.models.load_model("models/generator.keras", compile=False)
+def get_generator():
+    global generator
+    if generator is None:
+        print("Loading GAN Generator...")
+        generator = tf.keras.models.load_model("models/generator.keras", compile=False)
+    return generator
 
 # ===================================================
 #  PyTorch Autoencoder (.pt)
 # ===================================================
 
-print("Loading PyTorch Autoencoder...")
-
 IMG_SIZE = 128
+device = "cpu"
 
 class Autoencoder(nn.Module):
     def __init__(self, latent_dim=128):
@@ -123,44 +139,45 @@ class Autoencoder(nn.Module):
         x = self.decoder(x)
         return x
 
-
-device = "cpu"
-autoencoder = Autoencoder().to(device)
-
-# Safe Windows-friendly absolute path
-MODEL_PATH = os.path.join(os.getcwd(), "models", "autoencoder_final.pt")
-print("Autoencoder path:", MODEL_PATH)
-
-state = torch.load(MODEL_PATH, map_location=device)
-autoencoder.load_state_dict(state)
-autoencoder.eval()
-
-print("Autoencoder loaded successfully!")
+def get_autoencoder():
+    global autoencoder
+    if autoencoder is None:
+        print("Loading PyTorch Autoencoder...")
+        model = Autoencoder().to(device)
+        MODEL_PATH = os.path.join(os.getcwd(), "models", "autoencoder_final.pt")
+        print("Autoencoder path:", MODEL_PATH)
+        state = torch.load(MODEL_PATH, map_location=device)
+        model.load_state_dict(state)
+        model.eval()
+        autoencoder = model
+        print("Autoencoder loaded successfully!")
+    return autoencoder
 
 # ===================================================
-#  Diffusion Model
+#  Diffusion Model (Lazy)
 # ===================================================
 
-print("Loading diffusion model...")
-
-unet = UNet2DModel(
-    sample_size=64,
-    in_channels=3,
-    out_channels=3,
-    layers_per_block=2,
-    block_out_channels=(64, 128, 256),
-    down_block_types=("DownBlock2D", "DownBlock2D", "DownBlock2D"),
-    up_block_types=("UpBlock2D", "UpBlock2D", "UpBlock2D")
-)
-
-state = torch.load("models/diffusion_final.pt", map_location=device)
-unet.load_state_dict(state, strict=True)
-
-scheduler = DDPMScheduler(num_train_timesteps=1000)
-pipe = DDPMPipeline(unet=unet, scheduler=scheduler).to(device)
-pipe.unet.eval()
-
-print("Diffusion model loaded successfully!")
+def get_diffusion_pipe():
+    global pipe
+    if pipe is None:
+        print("Loading diffusion model...")
+        unet = UNet2DModel(
+            sample_size=64,
+            in_channels=3,
+            out_channels=3,
+            layers_per_block=2,
+            block_out_channels=(64, 128, 256),
+            down_block_types=("DownBlock2D", "DownBlock2D", "DownBlock2D"),
+            up_block_types=("UpBlock2D", "UpBlock2D", "UpBlock2D")
+        )
+        state = torch.load("models/diffusion_final.pt", map_location=device)
+        unet.load_state_dict(state, strict=True)
+        scheduler = DDPMScheduler(num_train_timesteps=1000)
+        new_pipe = DDPMPipeline(unet=unet, scheduler=scheduler).to(device)
+        new_pipe.unet.eval()
+        pipe = new_pipe
+        print("Diffusion model loaded successfully!")
+    return pipe
 
 # ===================================================
 #  Flask App
@@ -183,10 +200,12 @@ def api_transformer():
         "cat", "cow", "sheep", "spider", "sqirrel"
     ]
     try:
+        model = get_transformer()
+        
         x = np.array(request.json["image"], dtype=np.float32)
         x = np.expand_dims(x, 0)
 
-        probs = transformer.predict(x, verbose=0)[0]
+        probs = model.predict(x, verbose=0)[0]
         top3_idx = probs.argsort()[::-1][:3]
 
         top3 = [
@@ -206,6 +225,8 @@ def api_transformer():
 @app.route("/api/autoencoder", methods=["POST"])
 def api_autoencoder():
     try:
+        model = get_autoencoder()
+
         arr = np.array(request.json["image"], dtype=np.float32)
         arr = np.transpose(arr, (2,0,1))
         arr = np.expand_dims(arr, 0)
@@ -213,7 +234,7 @@ def api_autoencoder():
         x = torch.tensor(arr, dtype=torch.float32).to(device)
 
         with torch.no_grad():
-            out = autoencoder(x).cpu().numpy()
+            out = model(x).cpu().numpy()
 
         out = np.transpose(out[0], (1,2,0)).tolist()
 
@@ -228,6 +249,7 @@ def api_autoencoder():
 
 @app.route("/api/generate_gan", methods=["POST"])
 def generate_gan():
+    _ = get_generator()
     return jsonify({"url": url_for("static", filename="OG.jpg")})
 
 # ===================================================
@@ -237,8 +259,10 @@ def generate_gan():
 @app.route("/api/diffusion", methods=["GET"])
 def api_diffusion():
     try:
+        model_pipe = get_diffusion_pipe()
+        
         with torch.no_grad():
-            result = pipe(num_inference_steps=50, batch_size=1)
+            result = model_pipe(num_inference_steps=50, batch_size=1)
             img = result.images[0]
             arr = np.array(img).tolist()
 
@@ -256,10 +280,10 @@ def health_check():
     return jsonify({
         "status": "healthy",
         "models_loaded": {
-            "transformer": True,
-            "autoencoder": True,
-            "gan": True,
-            "diffusion": True
+            "transformer": transformer is not None,
+            "autoencoder": autoencoder is not None,
+            "gan": generator is not None,
+            "diffusion": pipe is not None
         }
     })
 
@@ -268,4 +292,5 @@ def health_check():
 # ===================================================
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=True, host="0.0.0.0", port=port)
